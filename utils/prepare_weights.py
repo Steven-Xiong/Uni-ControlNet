@@ -9,6 +9,7 @@ from models.util import create_model
 
 
 def init_local(sd_weights_path, config_path, output_path):
+    #import pdb; pdb.set_trace()
     pretrained_weights = torch.load(sd_weights_path)
     if 'state_dict' in pretrained_weights:
         pretrained_weights = pretrained_weights['state_dict']

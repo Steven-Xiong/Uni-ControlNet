@@ -154,6 +154,7 @@ class FeatureExtractor(nn.Module):
         ])
     
     def forward(self, local_conditions):
+        #import pdb; pdb.set_trace()
         local_features = self.pre_extractor(local_conditions, None)
         assert len(self.extractors) == len(self.zero_convs)
         
@@ -164,7 +165,7 @@ class FeatureExtractor(nn.Module):
         return output_features
 
 
-class LocalAdapter(nn.Module):
+class LocalAdapter(nn.Module):  #这是新加的
     def __init__(
             self,
             in_channels,
@@ -254,7 +255,7 @@ class LocalAdapter(nn.Module):
             nn.SiLU(),
             linear(time_embed_dim, time_embed_dim),
         )
-
+        #import pdb; pdb.set_trace()
         self.feature_extractor = FeatureExtractor(local_channels, inject_channels)
         self.input_blocks = nn.ModuleList(
             [
@@ -398,6 +399,7 @@ class LocalAdapter(nn.Module):
     def forward(self, x, timesteps, context, local_conditions, **kwargs):
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
+        #import pdb; pdb.set_trace()
         local_features = self.feature_extractor(local_conditions)
 
         outs = []

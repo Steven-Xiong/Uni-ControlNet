@@ -34,6 +34,7 @@ class ImageLogger(Callback):
                 _, _, h, w = images[k].shape
                 if h == w == 1:
                     continue
+                #import pdb; pdb.set_trace()
                 for local_idx in range(self.num_local_conditions):
                     grid = torchvision.utils.make_grid(images[k][:, 3*local_idx: 3*(local_idx+1), :, : ], nrow=4)
                     if self.rescale:
