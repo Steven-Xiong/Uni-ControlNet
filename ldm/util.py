@@ -69,20 +69,22 @@ def count_params(model, verbose=False):
     return total_params
 
 
-def instantiate_from_config(config):
+def instantiate_from_config(config):#loss是空的？
     if not "target" in config:
         if config == '__is_first_stage__':
             return None
         elif config == "__is_unconditional__":
             return None
         raise KeyError("Expected key `target` to instantiate.")
+    #import pdb; pdb.set_trace()
     return get_obj_from_str(config["target"])(**config.get("params", dict()))
 
 
 def get_obj_from_str(string, reload=False):
+    #import pdb; pdb.set_trace()
     module, cls = string.rsplit(".", 1)
     if reload:
-        module_imp = importlib.import_module(module)
+        module_imp = importlib.import_module(module)   #src.train.dataset
         importlib.reload(module_imp)
     return getattr(importlib.import_module(module, package=None), cls)
 
@@ -126,7 +128,7 @@ class AdamWwithEMAandWings(optim.Optimizer):
         if closure is not None:
             with torch.enable_grad():
                 loss = closure()
-
+        #import pdb; pdb.set_trace()
         for group in self.param_groups:
             params_with_grad = []
             grads = []

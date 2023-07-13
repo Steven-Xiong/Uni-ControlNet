@@ -8,7 +8,7 @@ from ldm.modules.distributions.distributions import DiagonalGaussianDistribution
 
 from ldm.util import instantiate_from_config
 from ldm.modules.ema import LitEma
-
+from ldm.modules.image_degradation.utils_image import calculate_psnr,calculate_ssim
 
 class AutoencoderKL(pl.LightningModule):
     def __init__(self,
@@ -48,6 +48,9 @@ class AutoencoderKL(pl.LightningModule):
 
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
+        # add evaluation metrics
+        # self.psnr = calculate_psnr(img1, img2)
+        # self.ssim = calculate_ssim()
 
     def init_from_ckpt(self, path, ignore_keys=list()):
         sd = torch.load(path, map_location="cpu")["state_dict"]
@@ -90,7 +93,7 @@ class AutoencoderKL(pl.LightningModule):
         dec = self.decoder(z)
         return dec
 
-    def forward(self, input, sample_posterior=True):
+    def forward(self, input, sample_posterior=True): #encoder + posterior + decoder
         posterior = self.encode(input)
         if sample_posterior:
             z = posterior.sample()
@@ -107,6 +110,7 @@ class AutoencoderKL(pl.LightningModule):
         return x
 
     def training_step(self, batch, batch_idx, optimizer_idx):
+        #import pdb; pdb.set_trace()
         inputs = self.get_input(batch, self.image_key)
         reconstructions, posterior = self(inputs)
 
@@ -128,6 +132,7 @@ class AutoencoderKL(pl.LightningModule):
             return discloss
 
     def validation_step(self, batch, batch_idx):
+        #import pdb; pdb.set_trace()
         log_dict = self._validation_step(batch, batch_idx)
         with self.ema_scope():
             log_dict_ema = self._validation_step(batch, batch_idx, postfix="_ema")
@@ -146,6 +151,29 @@ class AutoencoderKL(pl.LightningModule):
         self.log_dict(log_dict_ae)
         self.log_dict(log_dict_disc)
         return self.log_dict
+    # TODO add test metrics：
+    # def test_step(self, batch, batch_idx):
+    #     log_dict = self._test_step(batch, batch_idx)
+    #     inputs = self.get_input(batch, self.image_key)
+    #     reconstructions, posterior = self(inputs)
+    #     #import pdb; pdb.set_trace()
+    #     psnr = calculate_psnr(reconstructions, posterior)
+    #     ssim = calculate_ssim(reconstructions, posterior)
+    #     return psnr, ssim
+    # def _test_step(self, batch, batch_idx, postfix=""):
+    #     inputs = self.get_input(batch, self.image_key)
+    #     reconstructions, posterior = self(inputs)
+    #     aeloss, log_dict_ae = self.loss(inputs, reconstructions, posterior, 0, self.global_step,
+    #                                     last_layer=self.get_last_layer(), split="test"+postfix)
+
+    #     discloss, log_dict_disc = self.loss(inputs, reconstructions, posterior, 1, self.global_step,
+    #                                         last_layer=self.get_last_layer(), split="test"+postfix)
+
+    #     self.log(f"test{postfix}/rec_loss", log_dict_ae[f"test{postfix}/rec_loss"])
+    #     self.log_dict(log_dict_ae)
+    #     self.log_dict(log_dict_disc)
+    #     return self.log_dict
+
 
     def configure_optimizers(self):
         lr = self.learning_rate
@@ -175,7 +203,7 @@ class AutoencoderKL(pl.LightningModule):
                 assert xrec.shape[1] > 3
                 x = self.to_rgb(x)
                 xrec = self.to_rgb(xrec)
-            log["samples"] = self.decode(torch.randn_like(posterior.sample()))
+            log["samples"] = self.decode(torch.randn_like(posterior.sample()))  #生成的target image
             log["reconstructions"] = xrec
             if log_ema or self.use_ema:
                 with self.ema_scope():

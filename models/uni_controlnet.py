@@ -8,6 +8,8 @@ from ldm.models.diffusion.ddpm import LatentDiffusion
 from ldm.util import log_txt_as_img, instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
 
+import torch.nn.functional as F
+from pytorch_msssim import ssim
 
 class UniControlNet(LatentDiffusion):
 
@@ -80,7 +82,7 @@ class UniControlNet(LatentDiffusion):
         c_cat = c["local_control"][0][:N]
         c_global = c["global_control"][0][:N]
         c = c["c_crossattn"][0][:N]
-        
+        #import pdb; pdb.set_trace()
         N = min(z.shape[0], N)
         n_row = min(z.shape[0], n_row)
         log["reconstruction"] = self.decode_first_stage(z)
@@ -104,7 +106,7 @@ class UniControlNet(LatentDiffusion):
             diffusion_grid = make_grid(diffusion_grid, nrow=diffusion_row.shape[0])
             log["diffusion_row"] = diffusion_grid
 
-        if sample:
+        if sample:  #不走
             samples, z_denoise_row = self.sample_log(cond={"local_control": [c_cat], "c_crossattn": [c], "global_control": [c_global]},
                                                      batch_size=N, ddim=use_ddim,
                                                      ddim_steps=ddim_steps, eta=ddim_eta)
@@ -126,10 +128,18 @@ class UniControlNet(LatentDiffusion):
                                              unconditional_conditioning=uc_full,
                                              )
             x_samples_cfg = self.decode_first_stage(samples_cfg)
-            log[f"samples_cfg_scale_{unconditional_guidance_scale:.2f}"] = x_samples_cfg
-
+            log[f"samples_cfg_scale_{unconditional_guidance_scale:.2f}"] = x_samples_cfg  #生成的图片
+        
+        #log['psnr'] = calculate_psnr(log["reconstruction"], log[f"samples_cfg_scale_{unconditional_guidance_scale:.2f}"])
+        #log['ssim'] = calculate_ssim(log["reconstruction"], log[f"samples_cfg_scale_{unconditional_guidance_scale:.2f}"])
         return log
-
+    # def test_step(self, batch, batch_idx):
+    #     psnr = calculate_psnr(images['reconstruction'], x_samples_cfg)
+    #     ssim = calculate_ssim(images['reconstruction'], x_samples_cfg)
+    #     self.log('psnr', psnr)
+    #     self.log('ssim', ssim)
+    #     return psnr,ssim
+    
     @torch.no_grad()
     def sample_log(self, cond, batch_size, ddim, ddim_steps, **kwargs):
         ddim_sampler = DDIMSampler(self)
@@ -171,3 +181,12 @@ class UniControlNet(LatentDiffusion):
                 self.global_adapter = self.global_adapter.cpu()
             self.first_stage_model = self.first_stage_model.cuda()
             self.cond_stage_model = self.cond_stage_model.cuda()
+
+
+def calculate_psnr(img1, img2):
+    mse_loss = F.mse_loss(img1, img2, reduction='none').mean(dim=(1,2,3))
+    psnr = 10 * ((1**2)/mse_loss).log10()
+    return psnr.mean()
+
+def calculate_ssim(img1, img2):
+    return ssim(img1, img2, data_range=1, size_average=True)

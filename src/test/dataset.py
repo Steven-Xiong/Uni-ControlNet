@@ -105,7 +105,7 @@ class CVUSADataset(Dataset):
                  drop_all_cond_prob,
                  drop_each_cond_prob,
                  image_size,
-                 mode):
+                 ):
         
         self.root = 'data/CVUSA'
         self.train_list = self.root + '/splits/train-19zl.csv'
@@ -118,14 +118,12 @@ class CVUSADataset(Dataset):
         self.keep_all_cond_prob = keep_all_cond_prob
         self.drop_all_cond_prob = drop_all_cond_prob
         self.drop_each_cond_prob = drop_each_cond_prob
-        
         #import pdb; pdb.set_trace()
-        self.mode = mode
+        self.mode = 'test'
         if self.mode == 'train':
           self.sat_files, self.street_files = self.load_path(self.train_list)
         else:
           self.sat_files, self.street_files = self.load_path(self.test_list)
-        
         
     
     def load_path(self, list_filename):
@@ -197,8 +195,7 @@ class CVACTDataset(Dataset):
                  keep_all_cond_prob,
                  drop_all_cond_prob,
                  drop_each_cond_prob,
-                 image_size,
-                 mode):
+                 image_size):
         
         #file_ids, self.annos = read_anno(anno_path)
         #self.image_paths = [os.path.join(image_dir, file_id + '.jpg') for file_id in file_ids]
@@ -208,11 +205,7 @@ class CVACTDataset(Dataset):
         self.street_dirs = []
         self.street_seg_dirs = []
         self.root = 'data/CVACT'
-        self.mode = mode
-        if self.mode == 'train':
-            self.sat_files = sorted(glob(self.root+'/ANU_data_small/satview_polish/*.jpg'))
-        else:
-            self.sat_files = sorted(glob(self.root+'/ANU_data_test/satview_polish/*.jpg'))
+        self.sat_files = sorted(glob(self.root+'/ANU_data_small/satview_polish/*.jpg'))
         for sat_file in self.sat_files:
             sat_dir = sat_file
             street_dir = sat_file.replace('satview_polish','streetview').replace('satView_polish','grdView')
@@ -343,8 +336,7 @@ class brooklynqueensdataset(Dataset):
                  keep_all_cond_prob,
                  drop_all_cond_prob,
                  drop_each_cond_prob,
-                 image_size,
-                 mode):
+                 image_size):
       #Dataset.__init__(self, opt)
       self.dirA = os.path.join(image_dir,'brooklyn/overhead/images/19') # phase 另算
       self.dirB = os.path.join(image_dir,'brooklyn/streetview/images')
@@ -353,7 +345,7 @@ class brooklynqueensdataset(Dataset):
       name = 'brooklyn-fc8_landuse'
       neighbors=20
       #import pdb; pdb.set_trace()
-      self.mode = mode #opt.mode
+      self.mode = 'train' #opt.mode
       self.image_size = image_size
       
       # add
@@ -627,15 +619,3 @@ class brooklynqueensdataset(Dataset):
   
     def __len__(self):
       return self.dataset_len
-
-
-# dataset = brooklynqueensdataset()
-# print(len(dataset))
-
-# item = dataset[1234]
-# jpg = item['jpg']
-# txt = item['txt']
-# hint = item['hint']
-# print(txt)
-# print(jpg.shape)
-# print(hint.shape)

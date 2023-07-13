@@ -133,7 +133,7 @@ def process(canny_image, mlsd_image, hed_image, sketch_image, openpose_image, mi
         cond = {"local_control": [local_control], "c_crossattn": [model.get_learned_conditioning([prompt + ', ' + a_prompt] * num_samples)], 'global_control': [global_control]}
         un_cond = {"local_control": [uc_local_control], "c_crossattn": [model.get_learned_conditioning([n_prompt] * num_samples)], 'global_control': [uc_global_control]}
         shape = (4, H // 8, W // 8)
-
+        import pdb; pdb.set_trace()
         if config.save_memory:
             model.low_vram_shift(is_diffusing=True)
 

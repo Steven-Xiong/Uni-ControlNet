@@ -7,3 +7,6 @@ annotator
 models/__pycache__
 ldm/__pycache__
 utils/__pycache__
+PerceptualSimilarity
+*.log
+.ckpt

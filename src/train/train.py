@@ -21,10 +21,10 @@ parser.add_argument('---batch-size', type=int, default=8)
 parser.add_argument('---training-steps', type=int, default=1e5)
 parser.add_argument('---resume-path', type=str, default='./ckpt/init_local.ckpt')
 parser.add_argument('---logdir', type=str, default='./log_local/')
-parser.add_argument('---log-freq', type=int, default=500)
+parser.add_argument('---log-freq', type=int, default=20)
 parser.add_argument('---sd-locked', type=bool, default=True)
 parser.add_argument('---num-workers', type=int, default=16)
-parser.add_argument('---gpus', type=int, default=-1)
+parser.add_argument('---gpus', type=int, default=1)
 args = parser.parse_args()
 
 
@@ -47,7 +47,6 @@ def main():
     model.load_state_dict(load_state_dict(resume_path, location='cpu'))
     model.learning_rate = learning_rate
     model.sd_locked = sd_locked
-
     dataset = instantiate_from_config(config['data'])
     #dataset.getitem(1)
     dataloader = DataLoader(dataset, num_workers=num_workers, batch_size=batch_size, pin_memory=True, shuffle=True)
@@ -62,6 +61,7 @@ def main():
         callbacks=[logger, checkpoint_callback], 
         default_root_dir=default_logdir,
         max_steps=training_steps,
+        fast_dev_run=True       # for debug only
     )
     trainer.fit(model,
         dataloader, 
