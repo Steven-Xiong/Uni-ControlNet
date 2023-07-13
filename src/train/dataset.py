@@ -582,21 +582,28 @@ class brooklynqueensdataset(Dataset):
       target_image = torch.roll(target_image, column_shift, dims=2)  # rotate columns
       source_seg = torch.roll(t_pano_seg[1], column_shift, dims=2)
       target_seg = torch.roll(t_pano_seg[0], column_shift, dims=2)
+      # add near images
+      near_image1 = torch.roll(t_near_images[1], column_shift, dims=2)
+      near_image2 = torch.roll(t_near_images[2], column_shift, dims=2)
       
       #################
       # source_image = AddBorder_tensor(source_image, cfg.data.border_size) # border_size = 0 may led to fault
       # target_image = AddBorder_tensor(target_image, cfg.data.border_size)
-      source_image1 = source_image
+      #source_image1 = source_image
     #   return {'A':t_image, 'B': t_near_images[0],'D': t_pano_seg[0], 'C': [], 'A_paths': self.aerial_dir, #self.dirA
     #            'near_locs': t_near_locs, 'near_images':t_near_images, 'label': t_label, 'bbox':t_bbox,'seg_panos':t_pano_seg,
     #            'target': target_image, 'target_loc': t_near_locs[0], 'source': source_image, 'source_loc': t_near_locs[1],
     #            'vec':vec,'source_image.shape': source_image1.shape}
+    
       anno = 'a high resolution streetview panorama'
       seg_pano = target_seg #t_pano_seg[0]
       #import pdb; pdb.set_trace()
       seg_pano = seg_pano.permute(1,2,0).numpy()
       target_image = target_image.permute(1,2,0).numpy()
       t_image = t_image.permute(1,2,0).numpy()
+      # 加入near images
+      near_image1 = near_image1.permute(1,2,0).numpy()
+      near_image2 = near_image2.permute(1,2,0).numpy()
       #t_pano_seg[0]=t_pano_seg[0].numpy().transpose(1,2,0)
       #import pdb; pdb.set_trace()
     #   seg_pano = cv2.cvtColor(np.asarray(seg_pano,dtype=np.uint8), cv2.COLOR_BGR2RGB)
@@ -611,7 +618,11 @@ class brooklynqueensdataset(Dataset):
 
       local_conditions.append(t_image)
       
-    
+      # add 2 near images
+      local_conditions.append(near_image1)
+      local_conditions.append(near_image2)
+      
+      
       # global conditions
       #for i in range(len(self.global_type_list)):
       global_conditions.append(t_image)

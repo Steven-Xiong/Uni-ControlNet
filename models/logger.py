@@ -36,6 +36,7 @@ class ImageLogger(Callback):
 
     @rank_zero_only
     def log_local(self, save_dir, split, images, global_step, current_epoch, batch_idx):
+        #import pdb; pdb.set_trace()
         root = os.path.join(save_dir, "image_log", split)
         for k in images:
             if k == 'local_control':
@@ -92,28 +93,28 @@ class ImageLogger(Callback):
                     images[k] = images[k].detach().cpu()
                     if self.clamp:
                         images[k] = torch.clamp(images[k], -1., 1.)
-
+            #import pdb; pdb.set_trace()
             self.log_local(pl_module.logger.save_dir, split, images,
                            pl_module.global_step, pl_module.current_epoch, batch_idx)
             # add metrics
             # log metrics
             #import pdb; pdb.set_trace()
-            metrics = {"clip_score": {'things': [], 'laion-art': [], 'CC3M':[]}, 'edge_rmse': [], 'delta_clip_score': {'things': [], 'laion-art':[], 'CC3M':[]}, 'aesthetics_score': [], 'sampling_time': np.round(np.mean(sampling_times), 2)}
-            generated_images.append(images['samples_cfg_scale_9.00'])
-            gt_images.append(images['reconstruction'])
-            try:  # sometimes the calculation fails with "sqrtm: array must not contain infs or NaNs"
-                metrics['fid_score'] = fid_score.calculate_fid(generated_images, gt_images, batch_size=32, 
-                    device='cuda' if torch.cuda.is_available() else 'cpu', dims=2048, num_workers=4)
-            except:
-                pass
+            # metrics = {"clip_score": {'things': [], 'laion-art': [], 'CC3M':[]}, 'edge_rmse': [], 'delta_clip_score': {'things': [], 'laion-art':[], 'CC3M':[]}, 'aesthetics_score': [], 'sampling_time': np.round(np.mean(sampling_times), 2)}
+            # generated_images.append(images['samples_cfg_scale_9.00'])
+            # gt_images.append(images['reconstruction'])
+            # try:  # sometimes the calculation fails with "sqrtm: array must not contain infs or NaNs"
+            #     metrics['fid_score'] = fid_score.calculate_fid(generated_images, gt_images, batch_size=32, 
+            #         device='cuda' if torch.cuda.is_available() else 'cpu', dims=2048, num_workers=4)
+            # except:
+            #     pass
 
             if is_train:
                 pl_module.train()
             # add return?
-            if split == 'test':
-                #pl_module.test()
+            # if split == 'test':
+            #     #pl_module.test()
                 
-                return images
+            #     return images
 
     def check_frequency(self, check_idx):
         return check_idx % self.batch_freq == 0

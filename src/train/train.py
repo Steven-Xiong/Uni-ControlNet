@@ -19,12 +19,14 @@ parser.add_argument('--config-path', type=str, default='./configs/local_v15.yaml
 parser.add_argument('--learning-rate', type=float, default=2e-5)
 parser.add_argument('---batch-size', type=int, default=8)
 parser.add_argument('---training-steps', type=int, default=1e5)
-parser.add_argument('---resume-path', type=str, default='./ckpt/init_local.ckpt')
+parser.add_argument('---resume-path', type=str, default='./ckpt/init_local_4con.ckpt')
 parser.add_argument('---logdir', type=str, default='./log_local/')
 parser.add_argument('---log-freq', type=int, default=20)
 parser.add_argument('---sd-locked', type=bool, default=True)
 parser.add_argument('---num-workers', type=int, default=16)
 parser.add_argument('---gpus', type=int, default=1)
+
+parser.add_argument('---num_local_conditions', type=int, default=4)
 args = parser.parse_args()
 
 
@@ -40,7 +42,8 @@ def main():
     sd_locked = args.sd_locked
     num_workers = args.num_workers
     gpus = args.gpus
-
+    num_local_conditions = args.num_local_conditions
+    
     config = OmegaConf.load(config_path)
     model = instantiate_from_config(config['model'])
 
@@ -51,7 +54,7 @@ def main():
     #dataset.getitem(1)
     dataloader = DataLoader(dataset, num_workers=num_workers, batch_size=batch_size, pin_memory=True, shuffle=True)
     #import pdb; pdb.set_trace()
-    logger = ImageLogger(batch_frequency=logger_freq, num_local_conditions =2)
+    logger = ImageLogger(batch_frequency=logger_freq, num_local_conditions=num_local_conditions)
     checkpoint_callback = ModelCheckpoint(
         every_n_train_steps=logger_freq,
     )
@@ -61,7 +64,7 @@ def main():
         callbacks=[logger, checkpoint_callback], 
         default_root_dir=default_logdir,
         max_steps=training_steps,
-        fast_dev_run=True       # for debug only
+        #fast_dev_run=True       # for debug only
     )
     trainer.fit(model,
         dataloader, 

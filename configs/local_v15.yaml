@@ -22,7 +22,7 @@ model:
       params:
         in_channels: 4
         model_channels: 320
-        local_channels: 6    #这里改一下，3*local condition个数
+        local_channels: 12    #这里改一下，3*local condition个数
         inject_channels: [192, 256, 384, 512]
         inject_layers: [1, 4, 7, 10]
         num_res_blocks: 2
@@ -79,7 +79,7 @@ model:
       target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
 
 data:
-  target: src.train.dataset.CVACTDataset
+  target: src.train.dataset.brooklynqueensdataset
   params:
     anno_path: ./data/anno.txt
     image_dir: ./data/brooklyn_queens
@@ -90,5 +90,6 @@ data:
     drop_txt_prob: 0.5
     keep_all_cond_prob: 0.1
     drop_all_cond_prob: 0.1
-    drop_each_cond_prob: [0.5,0.5]
+    drop_each_cond_prob: [0.5,0.5,0.5,0.5]
     image_size: [256,1024]
+    mode: train
