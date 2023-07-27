@@ -148,7 +148,7 @@ class ResnetBlock(nn.Module):
 
         return x+h
 
-
+# TODO 修改这里的attention
 class AttnBlock(nn.Module):
     def __init__(self, in_channels):
         super().__init__()
@@ -199,7 +199,7 @@ class AttnBlock(nn.Module):
         h_ = h_.reshape(b,c,h,w)
 
         h_ = self.proj_out(h_)
-
+        #import pdb; pdb.set_trace()
         return x+h_
 
 class MemoryEfficientAttnBlock(nn.Module):
@@ -265,6 +265,7 @@ class MemoryEfficientAttnBlock(nn.Module):
         )
         out = rearrange(out, 'b (h w) c -> b c h w', b=B, h=H, w=W, c=C)
         out = self.proj_out(out)
+        #import pdb; pdb.set_trace()
         return x+out
 
 
@@ -276,15 +277,16 @@ class MemoryEfficientCrossAttentionWrapper(MemoryEfficientCrossAttention):
         out = rearrange(out, 'b (h w) c -> b c h w', h=h, w=w, c=c)
         return x + out
 
-
+# TODO 修改这里的attention
 def make_attn(in_channels, attn_type="vanilla", attn_kwargs=None):
+    #import pdb; pdb.set_trace()
     assert attn_type in ["vanilla", "vanilla-xformers", "memory-efficient-cross-attn", "linear", "none"], f'attn_type {attn_type} unknown'
     if XFORMERS_IS_AVAILBLE and attn_type == "vanilla":
         attn_type = "vanilla-xformers"
     print(f"making attention of type '{attn_type}' with {in_channels} in_channels")
     if attn_type == "vanilla":
         assert attn_kwargs is None
-        return AttnBlock(in_channels)
+        return AttnBlock(in_channels)  #过这里
     elif attn_type == "vanilla-xformers":
         print(f"building MemoryEfficientAttnBlock with {in_channels} in_channels...")
         return MemoryEfficientAttnBlock(in_channels)

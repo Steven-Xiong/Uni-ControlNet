@@ -142,7 +142,7 @@ class CVUSADataset(Dataset):
         sat_image = cv2.cvtColor(sat_image, cv2.COLOR_BGR2RGB)
         sat_image = cv2.resize(sat_image, (256,256))
         sat_image = sat_image.astype(np.float32) / 255.0
-        #import pdb; pdb.set_trace()
+        
         t_image = sat_image
         for i in range(1, 4):
             rot_image = np.rot90(sat_image,i)
@@ -161,12 +161,14 @@ class CVUSADataset(Dataset):
       
 
         local_conditions = []
-        local_conditions = []
         global_conditions = []
         #for i in range(len(self.local_type_list)):
         # local contitions:
+        #import pdb; pdb.set_trace()
+        #if self.mode == 'train':
         local_conditions.append(street_seg)
-
+        # else:
+        #     local_conditions.append(np.zeros((256,1024,3),dtype='float32'))
         local_conditions.append(t_image)
         
         anno = 'a high resolution streetview panorama'

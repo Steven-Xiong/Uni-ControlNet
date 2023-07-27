@@ -17,7 +17,7 @@ from models.logger import ImageLogger
 parser = argparse.ArgumentParser(description='Uni-ControlNet Training')
 parser.add_argument('--config-path', type=str, default='./configs/local_v15.yaml')
 parser.add_argument('--learning-rate', type=float, default=2e-5)
-parser.add_argument('---batch-size', type=int, default=8)
+parser.add_argument('---batch-size', type=int, default=2)
 parser.add_argument('---training-steps', type=int, default=1e5)
 parser.add_argument('---resume-path', type=str, default='./ckpt/init_local_4con.ckpt')
 parser.add_argument('---logdir', type=str, default='./log_local/')

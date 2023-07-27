@@ -79,7 +79,7 @@ model:
       target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
 
 data:
-  target: src.train.dataset.brooklynqueensdataset
+  target: src.train.dataset.CVUSADataset
   params:
     anno_path: ./data/anno.txt
     image_dir: ./data/brooklyn_queens

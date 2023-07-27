@@ -396,7 +396,7 @@ class LocalAdapter(nn.Module):  #这是新加的
     def make_zero_conv(self, channels):
         return LocalTimestepEmbedSequential(zero_module(conv_nd(self.dims, channels, channels, 1, padding=0)))
 
-    def forward(self, x, timesteps, context, local_conditions, **kwargs):
+    def forward(self, x, timesteps, context, local_conditions, **kwargs):  #DDIM采样阶段
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
         #import pdb; pdb.set_trace()
@@ -406,13 +406,13 @@ class LocalAdapter(nn.Module):  #这是新加的
         h = x.type(self.dtype)
         for layer_idx, (module, zero_conv) in enumerate(zip(self.input_blocks, self.zero_convs)):
             if layer_idx in self.inject_layers:
-                h = module(h, emb, context, local_features[self.inject_layers.index(layer_idx)])
+                h = module(h, emb, context, local_features[self.inject_layers.index(layer_idx)]) #这部分加入condition[1,4,7,10]层
             else:
                 h = module(h, emb, context)
-            outs.append(zero_conv(h, emb, context))
+            outs.append(zero_conv(h, emb, context)) #每个shape均为[2,320,32,128]
 
         h = self.middle_block(h, emb, context)
-        outs.append(self.middle_block_out(h, emb, context))
+        outs.append(self.middle_block_out(h, emb, context)) #[B, 1280, 4, 16]
 
         return outs
 
@@ -420,20 +420,21 @@ class LocalAdapter(nn.Module):  #这是新加的
 class LocalControlUNetModel(UNetModel):
     def forward(self, x, timesteps=None, context=None, local_control=None, **kwargs):
         hs = []
+        #import pdb; pdb.set_trace()
         with torch.no_grad():
             t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
-            emb = self.time_embed(t_emb)
+            emb = self.time_embed(t_emb)  #[2, 1280]
             h = x.type(self.dtype)
             for module in self.input_blocks:
                 h = module(h, emb, context)
                 hs.append(h)
             h = self.middle_block(h, emb, context)
 
-        h += local_control.pop()
-
+        h += local_control.pop() # [4, 1280, 4, 16]
+        #print(h.shape)    
         for module in self.output_blocks:
             h = torch.cat([h, hs.pop() + local_control.pop()], dim=1)
             h = module(h, emb, context)
 
         h = h.type(x.dtype)
-        return self.out(h)
+        return self.out(h)   #[4, 4, 32, 128]

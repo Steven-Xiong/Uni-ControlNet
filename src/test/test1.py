@@ -41,13 +41,14 @@ from PIL import Image
 
 from scipy.spatial import distance as dist
 from scipy.stats import wasserstein_distance
+import lpips
 
 parser = argparse.ArgumentParser(description='Uni-ControlNet testing')
 parser.add_argument('--config-path', type=str, default='./configs/test_v15.yaml')
 parser.add_argument('--learning-rate', type=float, default=2e-5)
-parser.add_argument('---batch-size', type=int, default=32)
+parser.add_argument('---batch-size', type=int, default=4)
 parser.add_argument('---training-steps', type=int, default=1e5)
-parser.add_argument('---resume-path', type=str, default='log_local/lightning_logs/Brooklyn/epoch=61-step=50000.ckpt')
+parser.add_argument('---resume-path', type=str, default='log_local/lightning_logs/CVUSA/epoch=67-step=50000.ckpt')
 parser.add_argument('---logdir', type=str, default='./log_local/')
 parser.add_argument('---log-freq', type=int, default=500)
 parser.add_argument('---sd-locked', type=bool, default=True)
@@ -56,8 +57,8 @@ parser.add_argument('---gpus', type=int, default=1)
 # self
 parser.add_argument('--mode', default = 'local')
 parser.add_argument('--ddim_steps', type= int, default = 50)
-parser.add_argument('--input_path', type=str, default = 'log_local/test/input_brooklyn')
-parser.add_argument('--output_path', type= str, default = 'log_local/test/output_brooklyn')
+parser.add_argument('--input_path', type=str, default = 'log_local/test/input_CVUSA')
+parser.add_argument('--output_path', type= str, default = 'log_local/test/output_CVUSA')
 
 args = parser.parse_args()
 
@@ -140,17 +141,23 @@ if __name__ == '__main__':
     ddim_sampler = DDIMSampler(model)
     
     test_dataloader = DataLoader(dataset, num_workers=num_workers, batch_size=batch_size, pin_memory=True, shuffle=True)
+    #dataset.getitem(1)
     #指标计算：
     psnr_scores = []
     ssim_scores = []
     rmse_scores = []
     sd_scores = []
+    lpips_scores = []
     results_list = []
     input_list = []
     print('len: ', len(test_dataloader))
+    #LPIPS
+    loss_fn_alex = lpips.LPIPS(net='alex').cuda() # best forward scores
+    loss_fn_vgg = lpips.LPIPS(net='vgg').cuda() # closer to "traditional" perceptual loss, when used for optimization
     for batch_idx, data in enumerate(test_dataloader):
         #for debug 
-        # if batch_idx>=10:
+        #import pdb; pdb.set_trace()
+        # if batch_idx>=2:
         #     break
         target = data['jpg'].to(device, dtype = torch.float)
         prompt = data['txt'][0]
@@ -193,31 +200,38 @@ if __name__ == '__main__':
     print(len(input_list), len(results_list))
     #rmse = np.sqrt(mean_squared_error(input_list, results_list))
     for img1, img2 in zip(input_list, results_list):
-        
+        #import pdb; pdb.set_trace()
         psnr_tmp = compute_psnr(img1,img2)
         ssim_tmp = compute_ssim(img1,img2, channel_axis=-1, data_range=1.0) #或者ssim_tmp = compute_ssim(img1*255,img2*255, channel_axis=-1, data_range=255)
         mse = np.mean((img1 - img2) ** 2)
         rmse_tmp = np.sqrt(mse)
-        sd_tmp = calculate_sd_score(img1, img2)
+        sd_tmp = calculate_sd_score(img1, img2)   
+            
+        lpips_tmp = loss_fn_alex(torch.from_numpy(img1.transpose(2,0,1)).unsqueeze(0).to(device),torch.from_numpy(img2.transpose(2,0,1)).unsqueeze(0).to(device))
         
         psnr_scores.append(psnr_tmp)
         ssim_scores.append(ssim_tmp)
         rmse_scores.append(rmse_tmp)
         sd_scores.append(sd_tmp)
-        with open('evaluate_brooklyn_psnr.txt','a') as f:
+        lpips_scores.append(float(lpips_tmp))
+        with open('evaluate_CVUSA_psnr.txt','a') as f:
             f.write(str(psnr_tmp)+'\n')
-        with open('evaluate_brooklyn_ssim.txt','a') as f:
+        with open('evaluate_CVUSA_ssim.txt','a') as f:
             f.write(str(ssim_tmp)+'\n')
-        with open('evaluate_brooklyn_rmse.txt','a') as f:
+        with open('evaluate_CVUSA_rmse.txt','a') as f:
             f.write(str(rmse_tmp)+'\n')
-        with open('evaluate_brooklyn_sd.txt','a') as f:
+        with open('evaluate_CVUSA_sd.txt','a') as f:
             f.write(str(sd_tmp)+'\n')
+        with open('evaluate_CVUSA_lpips.txt','a') as f:
+            f.write(str(lpips_tmp)+'\n')
     
     #import pdb; pdb.set_trace()
     psnr_score = np.mean(psnr_scores)
     ssim_score = np.mean(ssim_scores)
     rmse_score = np.mean(rmse_scores)
     sd_score = np.mean(sd_scores)
+    lpips_score = np.mean(lpips_scores)
+    #lpips_score = loss_fn_vgg(input_list, results_list)
     #ssim_val = ssim( input_list, results_list, data_range=255, size_average=False)
     
     input_path = args.input_path
@@ -236,13 +250,14 @@ if __name__ == '__main__':
                                                     batch_size=50, 
                                                     device=device, 
                                                     dims=2048)
-    print('PSNR: ', psnr_score, 'SSIM: ', ssim_score, 'FID: ', fid, 'RMSE: ', rmse_score, 'SD: ', sd_score)
-    with open('evaluate_brooklyn.txt','a') as f:
+    print('PSNR: ', psnr_score, 'SSIM: ', ssim_score, 'FID: ', fid, 'RMSE: ', rmse_score, 'SD: ', sd_score,'LPIPS: ', lpips_score)
+    with open('evaluate_CVUSA.txt','a') as f:
         f.write('PSNR: '+ str(psnr_score))
         f.write('\nSSIM: '+ str(ssim_score))
         f.write('\nRMSE: '+ str(rmse_score))
         f.write('\nFID: '+ str(fid))
         f.write('\nSD: '+ str(sd_score))
+        f.write('\nlpips: '+ str(lpips_score))
         
     
     
