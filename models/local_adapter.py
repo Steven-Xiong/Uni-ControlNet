@@ -165,7 +165,7 @@ class FeatureExtractor(nn.Module):
         return output_features
 
 
-class LocalAdapter(nn.Module):  #这是新加的
+class LocalAdapter(nn.Module):  # TODO 这是新加的,要加soft attention mask在这里加
     def __init__(
             self,
             in_channels,
@@ -400,7 +400,7 @@ class LocalAdapter(nn.Module):  #这是新加的
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
         #import pdb; pdb.set_trace()
-        local_features = self.feature_extractor(local_conditions)
+        local_features = self.feature_extractor(local_conditions)  #多尺度输出
 
         outs = []
         h = x.type(self.dtype)

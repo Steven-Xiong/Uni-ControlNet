@@ -409,6 +409,36 @@ class QKVAttention(nn.Module):
     def count_flops(model, _x, y):
         return count_flops_attn(model, _x, y)
 
+#增加的
+def save_tensors(module: nn.Module, features, name: str):
+    """ Process and save activations in the module. """
+    """ From this repository: https://github.com/yandex-research/ddpm-segmentation """
+    if type(features) in [list, tuple]:
+        features = [f.detach().float() if f is not None else None 
+                    for f in features]
+        setattr(module, name, features)
+    elif isinstance(features, dict):
+        features = {k: f.detach().float() for k, f in features.items()}
+        setattr(module, name, features)
+    else:
+        setattr(module, name, features.detach().float())
+
+
+def save_input_hook(self, inp, out):
+    save_tensors(self, inp[0], 'qkv')
+    return out
+
+def attention_from_qkv(qkv, num_heads):
+    bs, width, length = qkv.shape
+    assert width % (3 * num_heads) == 0
+    ch = width // (3 * num_heads)
+    q, k, v = qkv.reshape(bs * num_heads, ch * 3, length).split(ch, dim=1)
+    scale = 1 / math.sqrt(math.sqrt(ch))
+    weight = th.einsum(
+        "bct,bcs->bts", q * scale, k * scale
+    )  # More stable with f16 than dividing afterwards
+    weight = th.softmax(weight.float(), dim=-1).type(weight.dtype)
+    return weight
 
 class UNetModel(nn.Module):
     """
@@ -620,7 +650,7 @@ class UNetModel(nn.Module):
                 input_block_chans.append(ch)
                 ds *= 2
                 self._feature_size += ch
-
+        
         if num_head_channels == -1:
             dim_head = ch // num_heads
         else:
@@ -723,7 +753,20 @@ class UNetModel(nn.Module):
                     ds //= 2
                 self.output_blocks.append(TimestepEmbedSequential(*layers))
                 self._feature_size += ch
-
+        
+        # Register forward hook to the attention map 这里是新加的，到648，self attention
+        # import pdb; pdb.set_trace()
+        # sel_attn_depth=2
+        # sel_attn_block="output"
+        # if sel_attn_block == "middle":
+        #     self.extract_attention = self.middle_block[1].attention
+        # elif sel_attn_block == "output":
+        #     assert sel_attn_depth <= 8 and sel_attn_depth >= 0, "sel_attn_depth must be between 0 and 8"
+        #     self.extract_attention = self.output_blocks[sel_attn_depth][1].attention
+        # else:
+        #     raise ValueError("sel_attn_block must be 'middle' or 'output'")
+        # self.extract_attention.register_forward_hook(save_input_hook)
+        
         self.out = nn.Sequential(
             normalization(ch),
             nn.SiLU(),
@@ -781,6 +824,11 @@ class UNetModel(nn.Module):
             h = th.cat([h, hs.pop()], dim=1)
             h = module(h, emb, context)
         h = h.type(x.dtype)
+        
+        # # Return the attention map with the output 这里是新加的
+        # qkv = self.extract_attention.qkv
+        # attention = attention_from_qkv(qkv, self.num_heads)
+        
         if self.predict_codebook_ids:
             return self.id_predictor(h)
         else:

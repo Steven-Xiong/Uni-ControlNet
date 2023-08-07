@@ -22,7 +22,7 @@ model:
       params:
         in_channels: 4
         model_channels: 320
-        local_channels: 12    #这里改一下，3*local condition个数
+        local_channels: 12    #这里改一下，3*local condition个数, 加3个mask就是15
         inject_channels: [192, 256, 384, 512]
         inject_layers: [1, 4, 7, 10]
         num_res_blocks: 2

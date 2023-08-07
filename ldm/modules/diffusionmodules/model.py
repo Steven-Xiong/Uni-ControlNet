@@ -517,10 +517,10 @@ class Encoder(nn.Module):
                                         stride=1,
                                         padding=1)
 
-    def forward(self, x):
+    def forward(self, x):  #x就是raw image [B,3,256,1024]输入，转换为隐空间
         # timestep embedding
         temb = None
-
+        #import pdb; pdb.set_trace()
         # downsampling
         hs = [self.conv_in(x)]
         for i_level in range(self.num_resolutions):

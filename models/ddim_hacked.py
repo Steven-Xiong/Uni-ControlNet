@@ -97,6 +97,7 @@ class DDIMSampler(object):
 
         self.make_schedule(ddim_num_steps=S, ddim_eta=eta, verbose=verbose)
         # sampling
+        import pdb; pdb.set_trace()
         C, H, W = shape
         size = (batch_size, C, H, W)
         print(f'Data shape for DDIM sampling is {size}, eta {eta}')
@@ -183,9 +184,9 @@ class DDIMSampler(object):
     def p_sample_ddim(self, x, c, t, index, repeat_noise=False, use_original_steps=False, quantize_denoised=False,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
                       unconditional_guidance_scale=1., unconditional_conditioning=None,
-                      dynamic_threshold=None,global_strength=None):
+                      dynamic_threshold=None,global_strength=None): #这里进行加attention map操作
         b, *_, device = *x.shape, x.device
-
+        #import pdb; pdb.set_trace()
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
             model_output = self.model.apply_model(x, t, c)
         else:

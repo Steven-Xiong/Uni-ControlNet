@@ -179,18 +179,49 @@ class CrossAttention(nn.Module):
             sim = einsum('b i d, b j d -> b i j', q, k) * self.scale
         
         del q, k
-    
+        #import pdb; pdb.set_trace()
         if exists(mask):
             mask = rearrange(mask, 'b ... -> b (...)')
             max_neg_value = -torch.finfo(sim.dtype).max
             mask = repeat(mask, 'b j -> (b h) () j', h=h)
             sim.masked_fill_(~mask, max_neg_value)
 
+        #这块是新加的, Modify FreestyleNet
+        # if exists(label) and exists(class_ids):
+        #     B = label.shape[0]
+        #     H = int(math.sqrt(q.shape[1]))
+        #     W = H
+        #     mask = torch.ones(B, H, W, 77)
+        #     for ii in range(B):
+        #         index = []
+        #         ids = np.argwhere(class_ids[ii].detach().cpu().numpy() > 0)
+        #         for jj in range(len(ids)):
+        #             index.append(ids[jj][0])
+        #             ### For those words with more than one token, we need to apply rectification to multiple attention maps
+        #             if ids[jj] in [39, 41, 44, 57, 59, 63, 65, 71, 75, 76, 79, 80, 87, 88, 92, 96, 97, 98, 100, 106, 109, 110, 135, 137, 139, 145]:
+        #                 index.append(ids[jj][0])
+        #             if ids[jj] in [49]:
+        #                 index.append(ids[jj][0])
+        #                 index.append(ids[jj][0])
+        #         for kk in range(len(index)):
+        #             tmp_mask = torch.zeros_like(label[ii]) # [h,w]
+        #             tmp_mask[label[ii]==index[kk]] = 1
+        #             tmp_mask = F.interpolate(tmp_mask.unsqueeze(0).unsqueeze(0), (H, W), mode="nearest")[0,0,:,:]
+        #             mask[ii,:,:,kk+1] = tmp_mask 
+        #             del tmp_mask              
+        #     mask = rearrange(mask, 'b h w c -> b (h w) c')
+        #     mask = repeat(mask, 'b n c -> (b h) n c', h=h)
+        #     mask = mask.to(q.device)
+        #     mask = mask > 0.5
+        #     max_neg_value = -torch.finfo(sim.dtype).max
+        #     sim.masked_fill_(~mask, max_neg_value)
+        #     del mask
+
         # attention, what we cannot get enough of
         sim = sim.softmax(dim=-1)
 
         out = einsum('b i j, b j d -> b i d', sim, v)
-        out = rearrange(out, '(b h) n d -> b n (h d)', h=h)
+        out = rearrange(out, '(b h) n d -> b n (h d)', h=h) #[B, 4096, 320]
         return self.to_out(out)
 
 

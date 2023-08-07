@@ -241,9 +241,6 @@ class CVACTDataset(Dataset):
     
     def __getitem__(self, index):
         sample = {}
-        #import pdb; pdb.set_trace()
-        # file path
-        #sample_path = self.samples[index]
         
         sat_image = cv2.imread(self.sat_dirs[index])
         sat_image = cv2.cvtColor(sat_image, cv2.COLOR_BGR2RGB)
@@ -539,6 +536,7 @@ class brooklynqueensdataset(Dataset):
   
 
       t_image = TF.to_tensor(image).float()
+      sat_img = t_image  #256*256 image
       t_label = torch.from_numpy(label).float()
       t_bbox = torch.from_numpy(bbox).float()
       t_near_locs = torch.from_numpy(near_locs).float()
@@ -553,7 +551,7 @@ class brooklynqueensdataset(Dataset):
             #image= np.ascontiguousarray(image)
             #rot_image= image.transpose(1,0,2)[::-1]
             
-            rot_image = np.rot90(image,i)
+            rot_image = image #np.rot90(image,i) 换成复制，不rotate
             rot_image = np.ascontiguousarray(rot_image)
             t_image = torch.cat((t_image, transforms.ToTensor()(rot_image).float()),2)
       #import pdb; pdb.set_trace()
@@ -624,6 +622,8 @@ class brooklynqueensdataset(Dataset):
       local_conditions.append(near_image1)
       local_conditions.append(near_image2)
       
+      #local_conditions.append(near_image1)
+      
       
       # global conditions
       #for i in range(len(self.global_type_list)):
@@ -634,7 +634,8 @@ class brooklynqueensdataset(Dataset):
           local_conditions = np.concatenate(local_conditions, axis=2)
       if len(global_conditions) != 0:
           global_conditions = np.concatenate(global_conditions)
-      return dict(jpg=target_image, txt=anno, local_conditions=local_conditions, global_conditions=global_conditions)
+      return dict(jpg=target_image, txt=anno, local_conditions=local_conditions, global_conditions=global_conditions,
+                  t_image=sat_img, label=t_label,bbox=t_bbox, near_locs=t_near_locs, near_images=t_near_images)
       #return dict(jpg=target_image, txt=anno, local_conditions=seg_pano, global_conditions=t_image)
       
   
@@ -642,13 +643,3 @@ class brooklynqueensdataset(Dataset):
       return self.dataset_len
 
 
-# dataset = brooklynqueensdataset()
-# print(len(dataset))
-
-# item = dataset[1234]
-# jpg = item['jpg']
-# txt = item['txt']
-# hint = item['hint']
-# print(txt)
-# print(jpg.shape)
-# print(hint.shape)

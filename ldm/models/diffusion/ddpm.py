@@ -311,6 +311,7 @@ class DDPM(pl.LightningModule):
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
     def p_mean_variance(self, x, t, clip_denoised: bool):
+        #import pdb; pdb.set_trace()
         model_out = self.model(x, t)
         if self.parameterization == "eps":
             x_recon = self.predict_start_from_noise(x, t=t, noise=model_out)
@@ -325,12 +326,13 @@ class DDPM(pl.LightningModule):
     @torch.no_grad()
     def p_sample(self, x, t, clip_denoised=True, repeat_noise=False):
         b, *_, device = *x.shape, x.device
+        import pdb; pdb.set_trace()
         model_mean, _, model_log_variance = self.p_mean_variance(x=x, t=t, clip_denoised=clip_denoised)
         noise = noise_like(x.shape, device, repeat_noise)
         # no noise when t == 0
         nonzero_mask = (1 - (t == 0).float()).reshape(b, *((1,) * (len(x.shape) - 1)))
         return model_mean + nonzero_mask * (0.5 * model_log_variance).exp() * noise
-
+        
     @torch.no_grad()
     def p_sample_loop(self, shape, return_intermediates=False):
         device = self.betas.device
@@ -902,7 +904,7 @@ class LatentDiffusion(DDPM):
 
         if self.parameterization == "x0":
             target = x_start
-        elif self.parameterization == "eps":
+        elif self.parameterization == "eps":  #走这里
             target = noise
         elif self.parameterization == "v":
             target = self.get_v(x_start, noise, t)
@@ -932,6 +934,7 @@ class LatentDiffusion(DDPM):
     def p_mean_variance(self, x, c, t, clip_denoised: bool, return_codebook_ids=False, quantize_denoised=False,
                         return_x0=False, score_corrector=None, corrector_kwargs=None):
         t_in = t
+        #import pdb; pdb.set_trace()
         model_out = self.apply_model(x, t_in, c, return_ids=return_codebook_ids)
 
         if score_corrector is not None:
@@ -977,7 +980,7 @@ class LatentDiffusion(DDPM):
             model_mean, _, model_log_variance, x0 = outputs
         else:
             model_mean, _, model_log_variance = outputs
-
+        import pdb; pdb.set_trace()
         noise = noise_like(x.shape, device, repeat_noise) * temperature
         if noise_dropout > 0.:
             noise = torch.nn.functional.dropout(noise, p=noise_dropout)
@@ -1102,6 +1105,7 @@ class LatentDiffusion(DDPM):
     def sample(self, cond, batch_size=16, return_intermediates=False, x_T=None,
                verbose=True, timesteps=None, quantize_denoised=False,
                mask=None, x0=None, shape=None, **kwargs):
+        import pdb; pdb.set_trace()
         if shape is None:
             shape = (batch_size, self.channels, self.image_size, self.image_size)
         if cond is not None:
@@ -1328,6 +1332,7 @@ class DiffusionWrapper(pl.LightningModule):
         assert self.conditioning_key in [None, 'concat', 'crossattn', 'hybrid', 'adm', 'hybrid-adm', 'crossattn-adm']
 
     def forward(self, x, t, c_concat: list = None, c_crossattn: list = None, c_adm=None):
+        import pdb; pdb.set_trace()
         if self.conditioning_key is None:
             out = self.diffusion_model(x, t)
         elif self.conditioning_key == 'concat':

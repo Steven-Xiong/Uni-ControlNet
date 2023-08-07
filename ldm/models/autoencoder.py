@@ -9,6 +9,8 @@ from ldm.modules.distributions.distributions import DiagonalGaussianDistribution
 from ldm.util import instantiate_from_config
 from ldm.modules.ema import LitEma
 from ldm.modules.image_degradation.utils_image import calculate_psnr,calculate_ssim
+# add geo attention module
+from models_geo.models import *
 
 class AutoencoderKL(pl.LightningModule):
     def __init__(self,
@@ -26,6 +28,7 @@ class AutoencoderKL(pl.LightningModule):
         super().__init__()
         self.learn_logvar = learn_logvar
         self.image_key = image_key
+        #import pdb; pdb.set_trace()
         self.encoder = Encoder(**ddconfig)
         self.decoder = Decoder(**ddconfig)
         self.loss = instantiate_from_config(lossconfig)
@@ -48,6 +51,16 @@ class AutoencoderKL(pl.LightningModule):
 
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
+        #import pdb; pdb.set_trace()
+        # add geo attention part
+        #if context is None:
+        context = {
+            x: True for x in ["distance", "orientation", "panorama", "overhead"]
+        }
+        self.geo_attn = True
+        self.geonet = Unified(num_output=13,context=context)
+        
+
         # add evaluation metrics
         # self.psnr = calculate_psnr(img1, img2)
         # self.ssim = calculate_ssim()
@@ -83,18 +96,25 @@ class AutoencoderKL(pl.LightningModule):
             self.model_ema(self)
 
     def encode(self, x):
-        h = self.encoder(x)
-        moments = self.quant_conv(h)
+        #import pdb; pdb.set_trace()
+        h = self.encoder(x)          #[B, 8, 32, 128]
+        moments = self.quant_conv(h) #[B, 8, 32, 128]
         posterior = DiagonalGaussianDistribution(moments)
         return posterior
 
     def decode(self, z):
+        #import pdb; pdb.set_trace()
         z = self.post_quant_conv(z)
         dec = self.decoder(z)
         return dec
 
     def forward(self, input, sample_posterior=True): #encoder + posterior + decoder
-        posterior = self.encode(input)
+        import pdb; pdb.set_trace()
+        if self.geo_attn:
+            geo_attention = self.geonet(input)
+            posterior = self.encode(input,geo_attention)  #这里面加入输入的geo attention
+        else:
+            posterior = self.encode(input)
         if sample_posterior:
             z = posterior.sample()
         else:
@@ -109,8 +129,8 @@ class AutoencoderKL(pl.LightningModule):
         x = x.permute(0, 3, 1, 2).to(memory_format=torch.contiguous_format).float()
         return x
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
-        #import pdb; pdb.set_trace()
+    def training_step(self, batch, batch_idx, optimizer_idx):  #同时加进来geo attention的训练？
+        import pdb; pdb.set_trace()
         inputs = self.get_input(batch, self.image_key)
         reconstructions, posterior = self(inputs)
 
