@@ -11,6 +11,7 @@ from ldm.models.diffusion.ddim import DDIMSampler
 import torch.nn.functional as F
 from pytorch_msssim import ssim
 from models_geo.models import Unified, Grid2d
+import torch.nn as nn
 #from ldm.models.diffusion.ddpm import DDPMSampler
 #插值函数
 # def interpolate_tensor(input_tensor):
@@ -42,6 +43,85 @@ def interpolate_tensor(input_tensor, batch_size=4):
 
     return output_tensor
 
+class CNN_AttentionReduce(nn.Module):
+    def __init__(self, output_channels):
+        super(CNN_AttentionReduce, self).__init__()
+        self.conv = nn.Conv2d(32*32, output_channels, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        # shape: [B, 32, 32, H, W]
+        B, _, _, H, W = x.shape
+
+        # Reshape to [B, 32*32, H, W]
+        x = x.view(B, 32*32, H, W)
+
+        # Apply 1x1 convolution
+        x = self.conv(x)
+
+        return x
+
+class CNN_AttentionReduce_3layers(nn.Module):
+    def __init__(self, output_channels):
+        super(CNN_AttentionReduce_3layers, self).__init__()
+        
+        # First 1x1 convolution to reduce channels
+        self.conv1 = nn.Conv2d(32*32, 512, kernel_size=1, stride=1, padding=0)
+        self.relu1 = nn.ReLU(inplace=True)
+
+        # Second convolution layer
+        self.conv2 = nn.Conv2d(512, 256, kernel_size=1, stride=1, padding=0)
+        self.relu2 = nn.ReLU(inplace=True)
+
+        # Third convolution layer to get the desired output channels
+        self.conv3 = nn.Conv2d(256, output_channels, kernel_size=1, stride=1, padding=0)
+        self.relu3 = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        # shape: [B, 32, 32, H, W]
+        B, _, _, H, W = x.shape
+
+        # Reshape to [B, 32*32, H, W]
+        x = x.view(B, 32*32, H, W)
+
+        # Apply the convolutions with ReLU activations
+        x = self.relu1(self.conv1(x))
+        x = self.relu2(self.conv2(x))
+        x = self.relu3(self.conv3(x))
+
+        return x
+    
+class CNN_FeatureReduce_sat(nn.Module):
+    def __init__(self, input_channels=256):
+        super(CNN_FeatureReduce_sat, self).__init__()
+        # 卷积层：输入通道数为 input_channels，输出通道数为 1
+        self.conv = nn.Conv2d(input_channels, 1, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        return self.conv(x)
+
+class CNN_FeatureReduce_sat_3layers(nn.Module):
+    def __init__(self, input_channels=256):
+        super(CNN_FeatureReduce_sat_3layers, self).__init__()
+        
+        # First 1x1 convolution
+        self.conv1 = nn.Conv2d(input_channels, 128, kernel_size=1, stride=1, padding=0)
+        self.relu1 = nn.ReLU(inplace=True)
+
+        # Second 1x1 convolution
+        self.conv2 = nn.Conv2d(128, 64, kernel_size=1, stride=1, padding=0)
+        self.relu2 = nn.ReLU(inplace=True)
+
+        # Third 1x1 convolution to get the desired output channel (1 channel)
+        self.conv3 = nn.Conv2d(64, 1, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        # Apply the convolutions with ReLU activations
+        x = self.relu1(self.conv1(x))
+        x = self.relu2(self.conv2(x))
+        x = self.conv3(x)
+
+        return x
+    
 class UniControlNet(LatentDiffusion):
 
     def __init__(self, mode, local_control_config=None, global_control_config=None, *args, **kwargs):
@@ -59,6 +139,14 @@ class UniControlNet(LatentDiffusion):
             }
         self.geonet = Unified(num_output=13,context=context)
         self.geogrid = Grid2d(context)
+
+        #进行提取出来的特征维度缩减
+        # 调整网络结构
+        #self.CNN_AttentionReduce = CNN_AttentionReduce(output_channels=1)
+        self.avg_attention_reduce = False
+        #self.CNN_FeatureReduce_sat = CNN_FeatureReduce_sat()
+        self.CNN_AttentionReduce = CNN_AttentionReduce_3layers(output_channels=1)
+        self.CNN_FeatureReduce_sat = CNN_FeatureReduce_sat_3layers()
 
     @torch.no_grad()
     def get_input(self, batch, k, bs=None, *args, **kwargs):
@@ -106,9 +194,18 @@ class UniControlNet(LatentDiffusion):
         if self.mode in ['local', 'uni']:
             assert cond['local_control'][0] != None
             local_control = torch.cat(cond['local_control'], 1)  #[B,12,256,1024]
-            local_control = self.local_adapter(x=x_noisy, timesteps=t, context=cond_txt, local_conditions=local_control) #list, len=13
+            
             #if len(cond.keys())>3:  #加geo attention soft mask
-                
+
+
+            #output, attention, sat_attention = self.geonet(cond['t_image'], cond['bbox'], cond['near_locs'], cond['near_images'])
+            # attention: [B,32,32, 20, 16, 64] 32是grid size   sat_attention: [B, 256, 32, 32] 
+            #sat_attention, attention_street = self.geogrid(c1['bbox'], c1['near_locs'], c1['near_images'],c1['t_image'])
+            #生成的attention mask插值
+            #在插值前就设阈值
+            #attn_mask = interpolate_tensor(attention[:,:,:,0,:,:])
+
+            local_control = self.local_adapter(x=x_noisy, timesteps=t, context=cond_txt, local_conditions=local_control) #list, len=13
             local_control = [c * scale for c, scale in zip(local_control, self.local_control_scales)]  #这里加soft mask
         
         if self.mode == 'global':
@@ -139,13 +236,24 @@ class UniControlNet(LatentDiffusion):
             #生成的attention mask插值
             #在插值前就设阈值
             #attn_mask = interpolate_tensor(attention[:,:,:,0,:,:])
-            att_map1 = attention[:,0,0,1,:,:]
-            attn_mask1 = F.interpolate(att_map1.unsqueeze(1), size=(256, 1024), mode='bilinear', align_corners=False).squeeze(1)
-            att_map2 = attention[:,0,0,2,:,:]
-            attn_mask2 = F.interpolate(att_map2.unsqueeze(1), size=(256, 1024), mode='bilinear', align_corners=False).squeeze(1)
-            attn_satmap = sat_attention[:,0,:,:]
-            sat_mask = F.interpolate(attn_satmap.unsqueeze(1),size=(256, 256), mode='bilinear', align_corners=False)
-            sat_mask = sat_mask.repeat(1,1,1,4)
+            #import pdb; pdb.set_trace()
+            if self.CNN_AttentionReduce:
+                att_map1 = self.CNN_AttentionReduce(attention[:,:,:,1,:,:])
+                attn_mask1 = F.interpolate(att_map1, size=(256, 1024), mode='bilinear', align_corners=False).squeeze(1)
+                att_map2 = self.CNN_AttentionReduce(attention[:,:,:,2,:,:])
+                attn_mask2 = F.interpolate(att_map2, size=(256, 1024), mode='bilinear', align_corners=False).squeeze(1)
+                attn_satmap = self.CNN_FeatureReduce_sat(sat_attention)
+                sat_mask = F.interpolate(attn_satmap,size=(256, 256), mode='bilinear', align_corners=False)
+                sat_mask = sat_mask.repeat(1,1,1,4)
+                geo_mask=torch.cat((sat_mask,attn_mask1.unsqueeze(1),attn_mask2.unsqueeze(1)),dim=1)
+            else:
+                att_map1 = attention[:,0,0,1,:,:]
+                attn_mask1 = F.interpolate(att_map1.unsqueeze(1), size=(256, 1024), mode='bilinear', align_corners=False).squeeze(1)
+                att_map2 = attention[:,0,0,2,:,:]
+                attn_mask2 = F.interpolate(att_map2.unsqueeze(1), size=(256, 1024), mode='bilinear', align_corners=False).squeeze(1)
+                attn_satmap = sat_attention[:,0,:,:]
+                sat_mask = F.interpolate(attn_satmap.unsqueeze(1),size=(256, 256), mode='bilinear', align_corners=False)
+                sat_mask = sat_mask.repeat(1,1,1,4)
             #atten_mask = F.interpolate(attention[0,0,0,0,:,:],size=(256,1024), mode='bilinear',align_corners=False)
 
         c_cat = c["local_control"][0][:N]

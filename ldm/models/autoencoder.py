@@ -109,7 +109,7 @@ class AutoencoderKL(pl.LightningModule):
         return dec
 
     def forward(self, input, sample_posterior=True): #encoder + posterior + decoder
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         if self.geo_attn:
             geo_attention = self.geonet(input)
             posterior = self.encode(input,geo_attention)  #这里面加入输入的geo attention
@@ -130,7 +130,7 @@ class AutoencoderKL(pl.LightningModule):
         return x
 
     def training_step(self, batch, batch_idx, optimizer_idx):  #同时加进来geo attention的训练？
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         inputs = self.get_input(batch, self.image_key)
         reconstructions, posterior = self(inputs)
 
