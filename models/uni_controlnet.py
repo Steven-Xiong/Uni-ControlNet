@@ -42,7 +42,7 @@ def interpolate_tensor(input_tensor, batch_size=4):
         output_tensor[i:i+batch_size] = interpolated_batch
 
     return output_tensor
-
+#新加三层
 class CNN_AttentionReduce(nn.Module):
     def __init__(self, output_channels):
         super(CNN_AttentionReduce, self).__init__()
